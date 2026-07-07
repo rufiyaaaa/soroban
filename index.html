@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>そろばん見取り算・誤答分析 v14</title>
+  <title>そろばん見取り算・誤答分析 v15</title>
   <style>
     :root {
       --bg: #f7f7f8;
@@ -309,6 +309,7 @@
     .keypad button.keyNewline {
       background: #ecfdf5;
       color: #065f46;
+      font-weight: 900;
     }
     .primaryWide {
       width: 100%;
@@ -344,7 +345,7 @@
 </head>
 <body>
 <header>
-  <h1>そろばん見取り算・誤答分析 v14</h1>
+  <h1>そろばん見取り算・誤答分析 v15</h1>
   <div class="tabs">
     <button id="tabCurrent" class="tab active" type="button">今回の分析</button>
     <button id="tabTotal" class="tab" type="button">累積分析</button>
@@ -373,7 +374,7 @@
           <button type="button" data-key="9">9</button>
           <button type="button" class="keyMinus" data-key="-">−</button>
           <button type="button" data-key="0">0</button>
-          <button type="button" class="keyNewline" data-key="\n">改行</button>
+          <button type="button" class="keyNewline" data-key="+">＋</button>
           <button type="button" class="keyAction" id="backspaceBtn">1文字削除</button>
           <button type="button" class="keyAction" id="clearInputBtn">全消去</button>
           <button type="button" class="keyAction" id="endInputBtn">末尾へ</button>
@@ -384,7 +385,7 @@
         <button id="recordBtn" class="secondary" type="button">この誤答を記録する</button>
         <button id="sampleBtn" class="ghost" type="button">例を入れる</button>
       </div>
-      <p id="message" class="note">正の数と負の数を1行ずつ入力してください。画面内テンキーの「改行」で次の行に進めます。iPhoneのキーボードが出ないよう、入力欄は読み取り専用にしています。足す数／引く数の桁が0の場合、その一桁計算は記録しません。</p>
+      <p id="message" class="note">正の数と負の数を1行ずつ入力してください。画面内テンキーの「＋」で次の正の数へ、「−」で次の負の数へ進めます。iPhoneのキーボードが出ないよう、入力欄は読み取り専用にしています。足す数／引く数の桁が0の場合、その一桁計算は記録しません。</p>
     </section>
 
     <section class="card">
@@ -871,22 +872,30 @@
     for (var i = 0; i < keys.length; i++) {
       keys[i].addEventListener("click", function () {
         var v = this.getAttribute("data-key");
-        if (v === "\\n") {
-          v = "\n";
+        var pos = getCursor(textarea);
+        var before = textarea.value.slice(0, pos);
+        var lineStart = before.lastIndexOf("\n") + 1;
+        var currentLine = before.slice(lineStart);
+
+        if (v === "+") {
+          // ＋は「次の正の数へ進む」ボタン。入力欄にはプラス記号を残さず、改行だけ入れる。
+          if (textarea.value.length === 0 || currentLine.length === 0) {
+            v = "";
+          } else {
+            v = "\n";
+          }
         } else if (v === "-") {
-          var pos = getCursor(textarea);
-          var before = textarea.value.slice(0, pos);
-          var after = textarea.value.slice(pos);
-
-          // 行末でマイナスを押したら、自動で改行して次の行を負数入力にする
-          var lineStart = before.lastIndexOf("\n") + 1;
-          var currentLine = before.slice(lineStart);
-
-          if (currentLine.length > 0 && pos === before.length) {
+          // −は「次の負の数へ進む」ボタン。
+          // 行頭ならマイナスだけ、数字の右なら改行してマイナス。
+          if (currentLine.length > 0) {
             v = "\n-";
+          } else {
+            v = "-";
           }
         }
-        insertAtCursor(textarea, v);
+        if (v !== "") {
+          insertAtCursor(textarea, v);
+        }
       });
     }
 
