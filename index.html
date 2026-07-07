@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>そろばん見取り算・誤答分析 v12</title>
+  <title>そろばん見取り算・誤答分析 v13</title>
   <style>
     :root {
       --bg: #f7f7f8;
@@ -339,7 +339,7 @@
 </head>
 <body>
 <header>
-  <h1>そろばん見取り算・誤答分析 v12</h1>
+  <h1>そろばん見取り算・誤答分析 v13</h1>
   <div class="tabs">
     <button id="tabCurrent" class="tab active" type="button">今回の分析</button>
     <button id="tabTotal" class="tab" type="button">累積分析</button>
@@ -864,7 +864,21 @@
     for (var i = 0; i < keys.length; i++) {
       keys[i].addEventListener("click", function () {
         var v = this.getAttribute("data-key");
-        if (v === "\\n") v = "\n";
+        if (v === "\\n") {
+          v = "\n";
+        } else if (v === "-") {
+          var pos = getCursor(textarea);
+          var before = textarea.value.slice(0, pos);
+          var after = textarea.value.slice(pos);
+
+          // 行末でマイナスを押したら、自動で改行して次の行を負数入力にする
+          var lineStart = before.lastIndexOf("\n") + 1;
+          var currentLine = before.slice(lineStart);
+
+          if (currentLine.length > 0 && pos === before.length) {
+            v = "\n-";
+          }
+        }
         insertAtCursor(textarea, v);
       });
     }
