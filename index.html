@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>そろばん見取り算・誤答分析 v8</title>
+  <title>そろばん見取り算・誤答分析 v12</title>
   <style>
     :root {
       --bg: #f7f7f8;
@@ -75,10 +75,52 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 18px;
       line-height: 1.45;
+      text-align: right;
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 12px;
       background: #fff;
+      caret-color: #2563eb;
+    }
+    .inputBox {
+      width: 100%;
+      min-height: 180px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 18px;
+      line-height: 1.45;
+      text-align: right;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .inputLine {
+      min-height: 1.45em;
+    }
+    .fakeCaret {
+      display: inline-block;
+      width: 2px;
+      height: 1.05em;
+      background: #2563eb;
+      margin-left: 2px;
+      vertical-align: -2px;
+      animation: blinkCaret 1s step-end infinite;
+    }
+    @keyframes blinkCaret {
+      50% { opacity: 0; }
+    }
+    textarea.hiddenInput {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      min-height: 1px;
+      opacity: 0;
+      pointer-events: none;
     }
     .row {
       display: flex;
@@ -223,16 +265,28 @@
       margin-top: 8px;
     }
 
+    .inputKeypadLayout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 176px;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .inputKeypadLayout textarea,
+    .inputKeypadLayout .inputBox {
+      min-height: 278px;
+      height: 100%;
+    }
     .keypad {
-      margin-top: 10px;
+      margin-top: 0;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      gap: 6px;
+      align-content: stretch;
     }
     .keypad button {
-      min-height: 52px;
-      font-size: 22px;
-      border-radius: 14px;
+      min-height: 42px;
+      font-size: 20px;
+      border-radius: 12px;
       background: #fff;
       color: var(--text);
       border: 1px solid var(--line);
@@ -251,6 +305,12 @@
       background: #ecfdf5;
       color: #065f46;
     }
+    .primaryWide {
+      width: 100%;
+      margin-top: 10px;
+      font-size: 18px;
+      min-height: 52px;
+    }
 
     @media (max-width: 430px) {
       :root { --cell: 34px; }
@@ -258,12 +318,28 @@
       .stats { grid-template-columns: 1fr; }
       button { width: 100%; }
       .row button { flex: 1 1 100%; }
+      .inputKeypadLayout {
+        grid-template-columns: minmax(0, 1fr) 150px;
+        gap: 8px;
+      }
+      .inputKeypadLayout textarea,
+      .inputKeypadLayout .inputBox {
+        min-height: 248px;
+      }
+      .keypad button {
+        min-height: 39px;
+        font-size: 18px;
+        padding: 6px 4px;
+      }
+      .keypad button.keyAction {
+        font-size: 12px;
+      }
     }
   </style>
 </head>
 <body>
 <header>
-  <h1>そろばん見取り算・誤答分析 v8</h1>
+  <h1>そろばん見取り算・誤答分析 v12</h1>
   <div class="tabs">
     <button id="tabCurrent" class="tab active" type="button">今回の分析</button>
     <button id="tabTotal" class="tab" type="button">累積分析</button>
@@ -274,33 +350,36 @@
   <div id="currentPane">
     <section class="card">
       <h2>入力</h2>
-      <textarea id="problemInput" spellcheck="false">65
+      <div class="inputKeypadLayout">
+        <div id="problemDisplay" class="inputBox" role="textbox" aria-label="見取り算入力" aria-readonly="true"></div>
+        <textarea id="problemInput" class="hiddenInput" spellcheck="false" readonly>65
 29
 81
 -45</textarea>
-      <div class="keypad" aria-label="入力用テンキー">
-        <button type="button" data-key="1">1</button>
-        <button type="button" data-key="2">2</button>
-        <button type="button" data-key="3">3</button>
-        <button type="button" data-key="4">4</button>
-        <button type="button" data-key="5">5</button>
-        <button type="button" data-key="6">6</button>
-        <button type="button" data-key="7">7</button>
-        <button type="button" data-key="8">8</button>
-        <button type="button" data-key="9">9</button>
-        <button type="button" class="keyMinus" data-key="-">−</button>
-        <button type="button" data-key="0">0</button>
-        <button type="button" class="keyNewline" data-key="\n">改行</button>
-        <button type="button" class="keyAction" id="backspaceBtn">1文字削除</button>
-        <button type="button" class="keyAction" id="clearInputBtn">入力を全消去</button>
-        <button type="button" class="keyAction" id="focusInputBtn">カーソル表示</button>
+        <div class="keypad" aria-label="入力用テンキー">
+          <button type="button" data-key="1">1</button>
+          <button type="button" data-key="2">2</button>
+          <button type="button" data-key="3">3</button>
+          <button type="button" data-key="4">4</button>
+          <button type="button" data-key="5">5</button>
+          <button type="button" data-key="6">6</button>
+          <button type="button" data-key="7">7</button>
+          <button type="button" data-key="8">8</button>
+          <button type="button" data-key="9">9</button>
+          <button type="button" class="keyMinus" data-key="-">−</button>
+          <button type="button" data-key="0">0</button>
+          <button type="button" class="keyNewline" data-key="\n">改行</button>
+          <button type="button" class="keyAction" id="backspaceBtn">1文字削除</button>
+          <button type="button" class="keyAction" id="clearInputBtn">全消去</button>
+          <button type="button" class="keyAction" id="endInputBtn">末尾へ</button>
+        </div>
       </div>
+      <button id="analyzeBtn" class="primaryWide" type="button">分析する</button>
       <div class="row" style="margin-top:10px;">
-        <button id="analyzeBtn" type="button">分析する</button>
         <button id="recordBtn" class="secondary" type="button">この誤答を記録する</button>
         <button id="sampleBtn" class="ghost" type="button">例を入れる</button>
       </div>
-      <p id="message" class="note">正の数と負の数を1行ずつ入力してください。画面内テンキーの「改行」で次の行に進めます。足す数／引く数の桁が0の場合、その一桁計算は記録しません。</p>
+      <p id="message" class="note">正の数と負の数を1行ずつ入力してください。画面内テンキーの「改行」で次の行に進めます。iPhoneのキーボードが出ないよう、入力欄は読み取り専用にしています。足す数／引く数の桁が0の場合、その一桁計算は記録しません。</p>
     </section>
 
     <section class="card">
@@ -711,66 +790,96 @@
   }
 
 
-  function insertAtCursor(textarea, text) {
-    textarea.focus();
-    var start = textarea.selectionStart;
-    var end = textarea.selectionEnd;
+  var inputCursor = null;
 
-    if (typeof start !== "number" || typeof end !== "number") {
-      textarea.value += text;
-      return;
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function renderInputDisplay() {
+    var textarea = $("problemInput");
+    var display = $("problemDisplay");
+    if (!display) return;
+
+    var lines = textarea.value.split("\n");
+    if (lines.length === 0) lines = [""];
+    var html = "";
+    for (var i = 0; i < lines.length; i++) {
+      html += '<div class="inputLine">' + escapeHtml(lines[i]);
+      if (i === lines.length - 1) {
+        html += '<span class="fakeCaret"></span>';
+      }
+      html += '</div>';
     }
+    display.innerHTML = html;
+    display.scrollTop = display.scrollHeight;
+  }
 
-    var before = textarea.value.slice(0, start);
-    var after = textarea.value.slice(end);
-    textarea.value = before + text + after;
+  function getCursor(textarea) {
+    if (typeof inputCursor === "number") {
+      if (inputCursor < 0) inputCursor = 0;
+      if (inputCursor > textarea.value.length) inputCursor = textarea.value.length;
+      return inputCursor;
+    }
+    return textarea.value.length;
+  }
 
-    var next = start + text.length;
-    textarea.setSelectionRange(next, next);
+  function setCursor(textarea, pos) {
+    inputCursor = Math.max(0, Math.min(pos, textarea.value.length));
+    // readonly のためiPhoneキーボードを出さない。選択表示はPC向けの補助。
+    try {
+      textarea.setSelectionRange(inputCursor, inputCursor);
+    } catch (e) {}
+    renderInputDisplay();
+  }
+
+  function insertAtCursor(textarea, text) {
+    var pos = getCursor(textarea);
+    textarea.value = textarea.value.slice(0, pos) + text + textarea.value.slice(pos);
+    setCursor(textarea, pos + text.length);
   }
 
   function backspaceAtCursor(textarea) {
-    textarea.focus();
-    var start = textarea.selectionStart;
-    var end = textarea.selectionEnd;
-
-    if (typeof start !== "number" || typeof end !== "number") {
-      textarea.value = textarea.value.slice(0, -1);
-      return;
-    }
-
-    if (start !== end) {
-      textarea.value = textarea.value.slice(0, start) + textarea.value.slice(end);
-      textarea.setSelectionRange(start, start);
-      return;
-    }
-
-    if (start <= 0) return;
-    textarea.value = textarea.value.slice(0, start - 1) + textarea.value.slice(start);
-    textarea.setSelectionRange(start - 1, start - 1);
+    var pos = getCursor(textarea);
+    if (pos <= 0) return;
+    textarea.value = textarea.value.slice(0, pos - 1) + textarea.value.slice(pos);
+    setCursor(textarea, pos - 1);
   }
 
   function bindKeypad() {
+    var textarea = $("problemInput");
+    setCursor(textarea, textarea.value.length);
+
+    var display = $("problemDisplay");
+    if (display) {
+      display.addEventListener("click", function () {
+        setCursor(textarea, textarea.value.length);
+      });
+    }
+
     var keys = document.querySelectorAll("[data-key]");
     for (var i = 0; i < keys.length; i++) {
       keys[i].addEventListener("click", function () {
         var v = this.getAttribute("data-key");
         if (v === "\\n") v = "\n";
-        insertAtCursor($("problemInput"), v);
+        insertAtCursor(textarea, v);
       });
     }
 
     $("backspaceBtn").addEventListener("click", function () {
-      backspaceAtCursor($("problemInput"));
+      backspaceAtCursor(textarea);
     });
 
     $("clearInputBtn").addEventListener("click", function () {
-      $("problemInput").value = "";
-      $("problemInput").focus();
+      textarea.value = "";
+      setCursor(textarea, 0);
     });
 
-    $("focusInputBtn").addEventListener("click", function () {
-      $("problemInput").focus();
+    $("endInputBtn").addEventListener("click", function () {
+      setCursor(textarea, textarea.value.length);
     });
   }
 
@@ -782,6 +891,8 @@
     $("recordBtn").addEventListener("click", recordCurrent);
     $("sampleBtn").addEventListener("click", function () {
       $("problemInput").value = "65\n29\n81\n-45";
+      setCursor($("problemInput"), $("problemInput").value.length);
+      renderInputDisplay();
       doAnalyze();
     });
     $("refreshTotalBtn").addEventListener("click", renderTotal);
