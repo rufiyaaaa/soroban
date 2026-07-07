@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>そろばん見取り算・誤答分析 v7</title>
+  <style>
+    :root {
+      --bg: #f7f7f8;
+      --card: #ffffff;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --line: #d8dee4;
+      --accent: #2563eb;
+      --accent2: #0f766e;
+      --danger: #dc2626;
+      --warn: #b45309;
+      --cell: 38px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    header {
+      padding: 18px 16px 10px;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+    .tab {
+      flex: 1;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    main { padding: 14px; max-width: 860px; margin: 0 auto; }
+    section.card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    h2 { font-size: 18px; margin: 0 0 10px; }
+    h3 { font-size: 16px; margin: 14px 0 8px; }
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 18px;
+      line-height: 1.45;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      min-height: 46px;
+    }
+    button.secondary { background: var(--accent2); }
+    button.ghost {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    button.danger { background: var(--danger); }
+    .note { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+    .error { color: var(--danger); font-weight: 700; }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .stat .label { color: var(--muted); font-size: 13px; }
+    .stat .value { font-size: 24px; font-weight: 800; }
+    .tableWrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      -webkit-overflow-scrolling: touch;
+      padding: 10px;
+      text-align: center;
+    }
+    .matrixCaption {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0 0 8px;
+      text-align: center;
+      font-weight: 700;
+    }
+    table.matrix {
+      border-collapse: collapse;
+      min-width: calc(var(--cell) * 11);
+      table-layout: fixed;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .matrix th, .matrix td {
+      width: var(--cell);
+      height: var(--cell);
+      text-align: center;
+      border: 1px solid #e5e7eb;
+      font-size: 14px;
+      padding: 0;
+    }
+    .matrix th {
+      background: #f3f4f6;
+      font-weight: 800;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      white-space: nowrap;
+    }
+    .matrix thead th {
+      position: static;
+      background: #eef2ff;
+    }
+    .matrix .corner {
+      background: #e5e7eb;
+      font-size: 11px;
+      line-height: 1.15;
+      padding: 2px;
+    }
+    .axisTop {
+      background: #eef2ff !important;
+      font-size: 12px !important;
+    }
+    .axisLeft {
+      background: #f3f4f6 !important;
+      font-size: 12px !important;
+    }
+    .carryMark {
+      box-shadow: inset 0 0 0 2px #dc2626;
+    }
+    .matrixLegend {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 8px 0 0;
+      text-align: center;
+    }
+    .legendBox {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #dc2626;
+      vertical-align: -3px;
+      margin-right: 4px;
+      border-radius: 3px;
+      background: #fff;
+    }
+    .breakdown {
+      display: grid;
+      gap: 8px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .stepTitle { font-weight: 800; margin-bottom: 4px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+    }
+    .hidden { display: none; }
+    .records {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    @media (max-width: 430px) {
+      :root { --cell: 34px; }
+      main { padding: 10px; }
+      .stats { grid-template-columns: 1fr; }
+      button { width: 100%; }
+      .row button { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>そろばん見取り算・誤答分析 v7</h1>
+  <div class="tabs">
+    <button id="tabCurrent" class="tab active" type="button">今回の分析</button>
+    <button id="tabTotal" class="tab" type="button">累積分析</button>
+  </div>
+</header>
+
+<main>
+  <div id="currentPane">
+    <section class="card">
+      <h2>入力</h2>
+      <textarea id="problemInput" inputmode="numeric" spellcheck="false">65
+29
+81
+-45</textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="analyzeBtn" type="button">分析する</button>
+        <button id="recordBtn" class="secondary" type="button">この誤答を記録する</button>
+        <button id="sampleBtn" class="ghost" type="button">例を入れる</button>
+      </div>
+      <p id="message" class="note">正の数と負の数を1行ずつ入力してください。足す数／引く数の桁が0の場合、その一桁計算は記録しません。</p>
+    </section>
+
+    <section class="card">
+      <h2>分解結果</h2>
+      <div id="breakdown" class="breakdown"></div>
+    </section>
+
+    <section class="card">
+      <h2>今回の集計</h2>
+      <div id="currentStats" class="stats"></div>
+      <h3>足し算の百マス表</h3>
+      <div id="addTable" class="tableWrap"></div>
+      <h3>引き算の百マス表</h3>
+      <div id="subTable" class="tableWrap"></div>
+    </section>
+  </div>
+
+  <div id="totalPane" class="hidden">
+    <section class="card">
+      <h2>累積分析</h2>
+      <div class="row">
+        <button id="refreshTotalBtn" type="button">累積を更新</button>
+        <button id="deleteAllBtn" class="danger" type="button">記録を全削除</button>
+      </div>
+      <div id="recordCount" class="records"></div>
+      <div id="totalStats" class="stats"></div>
+      <h3>累積：足し算の百マス表</h3>
+      <div id="totalAddTable" class="tableWrap"></div>
+      <h3>累積：引き算の百マス表</h3>
+      <div id="totalSubTable" class="tableWrap"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "sorobanMitoriErrorRecords_v1";
+  var lastResult = null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function makeMatrix() {
+    var m = [];
+    for (var i = 0; i < 10; i++) {
+      var row = [];
+      for (var j = 0; j < 10; j++) row.push(0);
+      m.push(row);
+    }
+    return m;
+  }
+
+  function cloneMatrix(m) {
+    var r = makeMatrix();
+    for (var i = 0; i < 10; i++) for (var j = 0; j < 10; j++) r[i][j] = m[i][j];
+    return r;
+  }
+
+  function digitAt(absNum, posFromRight) {
+    var s = String(Math.abs(absNum));
+    var idx = s.length - 1 - posFromRight;
+    if (idx < 0) return 0;
+    return Number(s.charAt(idx));
+  }
+
+  function parseInput(text) {
+    var lines = text.split(/\r?\n/);
+    var nums = [];
+    for (var i = 0; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (t === "") continue;
+      if (!/^[+-]?\d+$/.test(t)) {
+        throw new Error((i + 1) + "行目が整数ではありません: " + t);
+      }
+      nums.push(parseInt(t, 10));
+    }
+    if (nums.length < 2) throw new Error("2行以上入力してください。");
+    return nums;
+  }
+
+  function countAddRippleTwoUp(base, addend) {
+    var count = 0;
+    var maxLen = Math.max(String(Math.abs(base)).length, String(Math.abs(addend)).length) + 3;
+    var carry = 0;
+    var runThrough9 = 0;
+
+    for (var pos = 0; pos < maxLen; pos++) {
+      var a = digitAt(base, pos);
+      var b = digitAt(addend, pos);
+      var sum = a + b + carry;
+      var nextCarry = sum >= 10 ? 1 : 0;
+
+      if (carry === 1 && a + b === 9) {
+        runThrough9++;
+      } else {
+        runThrough9 = 0;
+      }
+
+      if (nextCarry === 1 && runThrough9 >= 1) {
+        count++;
+      }
+
+      carry = nextCarry;
+    }
+    return count;
+  }
+
+  function countSubRippleTwoUp(base, subtrahend) {
+    var count = 0;
+    var maxLen = Math.max(String(Math.abs(base)).length, String(Math.abs(subtrahend)).length) + 3;
+    var borrow = 0;
+    var runThrough0 = 0;
+
+    for (var pos = 0; pos < maxLen; pos++) {
+      var a = digitAt(base, pos);
+      var b = digitAt(subtrahend, pos);
+      var need = b + borrow;
+      var nextBorrow = a < need ? 1 : 0;
+
+      if (borrow === 1 && a === b) {
+        runThrough0++;
+      } else {
+        runThrough0 = 0;
+      }
+
+      if (nextBorrow === 1 && runThrough0 >= 1) {
+        count++;
+      }
+
+      borrow = nextBorrow;
+    }
+    return count;
+  }
+
+  function analyze(text) {
+    var nums = parseInput(text);
+    var addM = makeMatrix();
+    var subM = makeMatrix();
+    var steps = [];
+    var carryCount = 0;
+    var borrowCount = 0;
+    var carryRippleTwoUp = 0;
+    var borrowRippleTwoUp = 0;
+    var current = nums[0];
+
+    for (var i = 1; i < nums.length; i++) {
+      var n = nums[i];
+      var op = n >= 0 ? "+" : "-";
+      var amount = Math.abs(n);
+      var before = current;
+      var after = current + n;
+      var maxLen = Math.max(String(Math.abs(before)).length, String(amount).length);
+      var calcs = [];
+
+      for (var pos = maxLen - 1; pos >= 0; pos--) {
+        var left = digitAt(before, pos);
+        var right = digitAt(amount, pos);
+
+        // そろばん見取り算の認知に合わせて、
+        // 足す数／引く数のその桁が0なら「計算した」とは記録しない。
+        // 例: 175-45 の百の位 1-0 は記録しない。
+        if (right === 0) {
+          continue;
+        }
+
+        if (op === "+") {
+          addM[left][right]++;
+          if (left + right >= 10) carryCount++;
+          calcs.push({ pos: pos, text: left + "+" + right, type: "add" });
+        } else {
+          subM[left][right]++;
+          if (left < right) borrowCount++;
+          calcs.push({ pos: pos, text: left + "-" + right, type: "sub" });
+        }
+      }
+
+      if (op === "+") {
+        carryRippleTwoUp += countAddRippleTwoUp(before, amount);
+      } else {
+        borrowRippleTwoUp += countSubRippleTwoUp(before, amount);
+      }
+
+      steps.push({
+        before: before,
+        op: op,
+        amount: amount,
+        after: after,
+        calcs: calcs
+      });
+      current = after;
+    }
+
+    return {
+      input: text,
+      numbers: nums,
+      steps: steps,
+      addMatrix: addM,
+      subMatrix: subM,
+      carryCount: carryCount,
+      borrowCount: borrowCount,
+      carryRippleTwoUp: carryRippleTwoUp,
+      borrowRippleTwoUp: borrowRippleTwoUp,
+      finalAnswer: current
+    };
+  }
+
+  function maxInMatrix(m) {
+    var max = 0;
+    for (var i = 0; i < 10; i++) for (var j = 0; j < 10; j++) if (m[i][j] > max) max = m[i][j];
+    return max;
+  }
+
+  function cellColor(count, max, hue) {
+    if (!count || max === 0) return "background:#fff;";
+    var alpha = 0.15 + 0.75 * (count / max);
+    return "background: rgba(" + hue + "," + alpha.toFixed(3) + "); font-weight:800;";
+  }
+
+  function renderMatrix(containerId, matrix, mode) {
+    var max = maxInMatrix(matrix);
+    var hue = mode === "add" ? "37,99,235" : "15,118,110";
+    var topLabel = mode === "add" ? "上：足す数" : "上：引く数";
+    var leftLabel = mode === "add" ? "左：足される数" : "左：引かれる数";
+    var corner = mode === "add" ? "足される数\\足す数" : "引かれる数\\引く数";
+    var legend = mode === "add" ? "赤枠：繰り上がりが発生する計算" : "赤枠：繰り下がりが発生する計算";
+
+    var html = '<div class="matrixCaption">' + leftLabel + ' ／ ' + topLabel + '</div>';
+    html += '<table class="matrix" aria-label="' + leftLabel + '、' + topLabel + '"><thead><tr>';
+    html += '<th class="corner">' + corner + '</th>';
+    for (var c = 0; c < 10; c++) html += '<th class="axisTop">' + c + '</th>';
+    html += "</tr></thead><tbody>";
+    for (var r = 0; r < 10; r++) {
+      html += '<tr><th class="axisLeft">' + r + '</th>';
+      for (var j = 0; j < 10; j++) {
+        var marked = mode === "add" ? (r + j >= 10) : (r < j);
+        var cls = marked ? ' class="carryMark"' : '';
+        html += '<td' + cls + ' style="' + cellColor(matrix[r][j], max, hue) + '">' + (matrix[r][j] || "") + "</td>";
+      }
+      html += "</tr>";
+    }
+    html += "</tbody></table>";
+    html += '<div class="matrixLegend"><span class="legendBox"></span>' + legend + '</div>';
+    $(containerId).innerHTML = html;
+  }
+
+  function renderStats(containerId, result) {
+    $(containerId).innerHTML =
+      '<div class="stat"><div class="label">繰り上がり回数</div><div class="value">' + result.carryCount + '</div></div>' +
+      '<div class="stat"><div class="label">繰り下がり回数</div><div class="value">' + result.borrowCount + '</div></div>' +
+      '<div class="stat"><div class="label">2つ上の位に波及する繰り上がり</div><div class="value">' + result.carryRippleTwoUp + '</div></div>' +
+      '<div class="stat"><div class="label">2つ上の位に波及する繰り下がり</div><div class="value">' + result.borrowRippleTwoUp + '</div></div>';
+  }
+
+  function renderBreakdown(result) {
+    var html = "";
+    for (var i = 0; i < result.steps.length; i++) {
+      var s = result.steps[i];
+      html += '<div class="step">';
+      html += '<div class="stepTitle">' + s.before + " " + s.op + " " + s.amount + " = " + s.after + '</div>';
+      html += '<div class="chips">';
+      if (s.calcs.length === 0) {
+        html += '<span class="chip">記録対象なし</span>';
+      } else {
+        for (var k = 0; k < s.calcs.length; k++) {
+          html += '<span class="chip">' + s.calcs[k].text + '</span>';
+        }
+      }
+      html += '</div></div>';
+    }
+    html += '<div class="step"><div class="stepTitle">最終結果：' + result.finalAnswer + '</div></div>';
+    $("breakdown").innerHTML = html;
+  }
+
+  function renderCurrent(result) {
+    renderBreakdown(result);
+    renderStats("currentStats", result);
+    renderMatrix("addTable", result.addMatrix, "add");
+    renderMatrix("subTable", result.subMatrix, "sub");
+  }
+
+  function getRecords() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function makeEmptyTotal() {
+    return {
+      addMatrix: makeMatrix(),
+      subMatrix: makeMatrix(),
+      carryCount: 0,
+      borrowCount: 0,
+      carryRippleTwoUp: 0,
+      borrowRippleTwoUp: 0
+    };
+  }
+
+  function addMatrixInto(dst, src) {
+    for (var i = 0; i < 10; i++) for (var j = 0; j < 10; j++) dst[i][j] += src[i][j] || 0;
+  }
+
+  function buildTotal(records) {
+    var total = makeEmptyTotal();
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      addMatrixInto(total.addMatrix, r.addMatrix || makeMatrix());
+      addMatrixInto(total.subMatrix, r.subMatrix || makeMatrix());
+      total.carryCount += r.carryCount || 0;
+      total.borrowCount += r.borrowCount || 0;
+      total.carryRippleTwoUp += r.carryRippleTwoUp || 0;
+      total.borrowRippleTwoUp += r.borrowRippleTwoUp || 0;
+    }
+    return total;
+  }
+
+  function renderTotal() {
+    var records = getRecords();
+    var total = buildTotal(records);
+    $("recordCount").textContent = "記録数：" + records.length + "件";
+    renderStats("totalStats", total);
+    renderMatrix("totalAddTable", total.addMatrix, "add");
+    renderMatrix("totalSubTable", total.subMatrix, "sub");
+  }
+
+  function showTab(which) {
+    var isCurrent = which === "current";
+    $("currentPane").className = isCurrent ? "" : "hidden";
+    $("totalPane").className = isCurrent ? "hidden" : "";
+    $("tabCurrent").className = isCurrent ? "tab active" : "tab";
+    $("tabTotal").className = isCurrent ? "tab" : "tab active";
+    if (!isCurrent) renderTotal();
+  }
+
+  function doAnalyze() {
+    try {
+      lastResult = analyze($("problemInput").value);
+      renderCurrent(lastResult);
+      $("message").textContent = "分析しました。最終結果は " + lastResult.finalAnswer + " です。右側の桁が0の計算は記録していません。";
+      $("message").className = "note";
+    } catch (e) {
+      $("message").textContent = e.message || String(e);
+      $("message").className = "note error";
+    }
+  }
+
+  function recordCurrent() {
+    if (!lastResult) {
+      doAnalyze();
+      if (!lastResult) return;
+    }
+    var records = getRecords();
+    records.push({
+      recordedAt: new Date().toISOString(),
+      input: lastResult.input,
+      steps: lastResult.steps,
+      addMatrix: cloneMatrix(lastResult.addMatrix),
+      subMatrix: cloneMatrix(lastResult.subMatrix),
+      carryCount: lastResult.carryCount,
+      borrowCount: lastResult.borrowCount,
+      carryRippleTwoUp: lastResult.carryRippleTwoUp,
+      borrowRippleTwoUp: lastResult.borrowRippleTwoUp,
+      finalAnswer: lastResult.finalAnswer
+    });
+    saveRecords(records);
+    $("message").textContent = "記録しました。累積分析に反映されています。";
+    $("message").className = "note";
+  }
+
+  var deleteArmedUntil = 0;
+
+  function deleteAll() {
+    var now = Date.now();
+    var btn = $("deleteAllBtn");
+
+    if (now < deleteArmedUntil) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        // 念のため、過去版で使った可能性のあるキーも消す
+        localStorage.removeItem("sorobanMitoriErrorRecords");
+        localStorage.removeItem("sorobanMitoriErrorRecords_v0");
+      } catch (e) {
+        $("recordCount").textContent = "削除に失敗しました: " + (e.message || e);
+        return;
+      }
+
+      deleteArmedUntil = 0;
+      btn.textContent = "記録を全削除";
+      btn.className = "danger";
+      renderTotal();
+      $("recordCount").textContent = "記録を削除しました。記録数：0件";
+      return;
+    }
+
+    deleteArmedUntil = now + 7000;
+    btn.textContent = "もう一度押すと全削除";
+    btn.className = "danger";
+    $("recordCount").textContent = "削除する場合は7秒以内にもう一度押してください。";
+  }
+
+  function bind() {
+    $("tabCurrent").addEventListener("click", function () { showTab("current"); });
+    $("tabTotal").addEventListener("click", function () { showTab("total"); });
+    $("analyzeBtn").addEventListener("click", doAnalyze);
+    $("recordBtn").addEventListener("click", recordCurrent);
+    $("sampleBtn").addEventListener("click", function () {
+      $("problemInput").value = "65\n29\n81\n-45";
+      doAnalyze();
+    });
+    $("refreshTotalBtn").addEventListener("click", renderTotal);
+    $("deleteAllBtn").addEventListener("click", deleteAll);
+  }
+
+  bind();
+  doAnalyze();
+})();
+</script>
+</body>
+</html>
